@@ -1,0 +1,57 @@
+on:
+  workflow_call:
+    inputs:
+      node-version:
+        required: true
+        type: string
+      aws-role-arn:
+        required: true
+        type: string
+      aws-region:
+        required: true
+        type: string
+      s3-bucket:
+        required: true
+        type: string
+      environment:
+        required: true
+        type: string
+    secrets:
+      CELATON_PAT:
+        required: true
+
+jobs:
+  deploy:
+    name: Upload build to S3
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+    permissions:
+      id-token: write
+      contents: read
+    env:
+      GITHUB_USER: Celaton
+      GITHUB_TOKEN: ${{ secrets.CELATON_PAT }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Set up Node.js ${{ inputs.node-version }}
+        uses: actions/setup-node@v3
+        with:
+          node-version: ${{ inputs.node-version }}
+
+      - name: Install dependencies
+        run: yarn install
+
+      - name: Build the project
+        run: yarn build
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          role-to-assume: ${{ inputs.aws-role-arn }}
+          aws-region: ${{ inputs.aws-region }}
+
+      - name: Deploy to S3 bucket
+        run: aws s3 sync ./build/ s3://${{ inputs.s3-bucket }}/module/dummyjacob/

@@ -1,0 +1,44 @@
+name: Jacob build
+on:
+  - push
+  - pull_request
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node-version: [16.x]
+    env:
+      GITHUB_USER: Celaton
+      GITHUB_TOKEN: ${{ secrets.CELATON_PAT }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Set up Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v3
+        with:
+          node-version: ${{ matrix.node-version }}
+
+      - name: Install dependencies
+        run: yarn install
+
+      - name: Run the tests
+        run: yarn test
+
+      - name: Build the project
+        run: yarn build
+
+  deploy-dev:
+    needs: test
+    if: github.ref == 'refs/heads/main'
+    uses: ./.github/workflows/deploy.yml
+    with:
+      node-version: "16.x"
+      aws-role-arn: arn:aws:iam::233502561200:role/DevWebApps-WebUploadBuildToS3Role-1VW7MKFBDDHI9
+      aws-region: eu-west-2
+      s3-bucket: devwebapps-webbucket-6c03crm4fys7
+      environment: development
+    secrets:
+      CELATON_PAT: ${{ secrets.CELATON_PAT }}
